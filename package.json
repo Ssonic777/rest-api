@@ -1,0 +1,28 @@
+{
+    "private": true,
+    "scripts": {
+        "dev": "npm run development",
+        "development": "mix",
+        "watch": "mix watch",
+        "watch-poll": "mix watch -- --watch-options-poll=1000",
+        "hot": "mix watch --hot",
+        "prod": "npm run production",
+        "production": "mix --production"
+    },
+    "devDependencies": {
+        "axios": "^0.21",
+        "js-yaml": "^4.1.0",
+        "json-refs": "^3.0.15",
+        "laravel-mix": "^6.0.28",
+        "lodash": "^4.17.19",
+        "path-loader": "^1.0.10",
+        "postcss": "^8.1.14",
+        "swagger-cli": "^4.0.4",
+        "vue-loader": "^16.8.3"
+    },
+    "dependencies": {
+        "firebase": "^8.0.2",
+        "redoc": "^1.16.1",
+        "vue": "^3.2.22"
+    }
+}

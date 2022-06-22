@@ -1,0 +1,22 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use {{ rootNamespace }}Repositories\Base\BaseModelRepository;
+
+/**
+ * class {{ class }}
+ * @package {{ namespace }}
+ */
+class {{ class }} extends BaseModelRepository
+{
+    /**
+     * @return string
+     */
+    protected function getModel(): string
+    {
+        return \Illuminate\Database\Eloquent\Model::class;
+    }
+}

@@ -1,0 +1,64 @@
+ARG WORKAROUND='kuber'
+FROM gitlab.internal.digitex.fun:443/developers/dependency_proxy/containers/php:7.4-fpm-alpine as base-php-image
+
+# Copy File Config
+ADD ./docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
+
+RUN sed -i 's/laravel/www-data/g' /usr/local/etc/php-fpm.d/www.conf
+
+# Install dependencies
+RUN apk add --no-cache \
+    freetype \
+    libpng \
+    libjpeg-turbo \
+    freetype-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    bash \
+    shadow
+
+RUN docker-php-ext-configure gd \
+    --with-freetype \
+    --with-jpeg
+
+RUN NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
+    docker-php-ext-install -j${NPROC} gd
+
+RUN apk del --no-cache freetype-dev libpng-dev libjpeg-turbo-dev
+
+RUN docker-php-ext-install pdo pdo_mysql sockets
+
+COPY --from=gitlab.internal.digitex.fun:443/developers/dependency_proxy/containers/composer:latest /usr/bin/composer /usr/bin/composer
+
+RUN curl -0 https://releases.hashicorp.com/consul-template/0.25.2/consul-template_0.25.2_linux_amd64.tgz --output /template.tgz
+WORKDIR /
+RUN tar -zxf /template.tgz
+
+RUN groupadd -g 1000 laravel
+RUN useradd -u 1000 -ms /bin/bash -g laravel laravel
+
+COPY --chown=laravel:laravel ./ /app
+
+FROM base-php-image AS workaround-kuber
+WORKDIR /app
+
+FROM base-php-image as workaround-local
+RUN apk add --no-cache $PHPIZE_DEPS && \
+    pecl install xdebug && \
+    docker-php-ext-enable xdebug && \
+    echo -e "xdebug.mode=coverage,develop,debug" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && \
+    echo -e "xdebug.client_host=host.docker.internal" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && \
+    echo -e "xdebug.start_with_request=yes" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && \
+    echo -e "xdebug.idekey=PHPSTORM" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && \
+    echo -e "xdebug.client_port=9003" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN rm -rf /var/www/html && ln -s /app /var/www/html
+WORKDIR /var/www/html
+
+FROM workaround-${WORKAROUND} AS final
+RUN composer install
+RUN chown -R laravel:laravel /app/vendor
+RUN chmod 755 -R /app/storage
+USER laravel
+
+EXPOSE 9000
+CMD ["php-fpm"]

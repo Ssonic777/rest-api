@@ -1,0 +1,9 @@
+FROM gitlab.internal.digitex.fun:443/developers/dependency_proxy/containers/nginx:stable-alpine
+
+RUN apk add nginx-mod-http-geoip
+
+RUN mkdir -p /opt/geoip
+RUN wget https://centminmod.com/centminmodparts/geoip-legacy/GeoIP.dat.gz -O /opt/geoip.dat.gz
+RUN cd /opt && gunzip geoip.dat.gz && rm -rf geoip.dat.gz
+
+COPY ./docker/nginx/app.conf /etc/nginx/conf.d/default.conf

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files psalm-version="4.7.1@cd53e047a58f71f646dd6bf45476076ab07b5d44">
+  <file src="app/Exceptions/Handler.php">
+    <UndefinedClass occurrences="1">
+      <code>app('sentry')</code>
+    </UndefinedClass>
+  </file>
+  <file src="app/Models/Comment.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>Comment</code>
+    </UndefinedDocblockClass>
+  </file>
+  <file src="app/Models/CommentReply.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>CommentReply</code>
+    </UndefinedDocblockClass>
+  </file>
+  <file src="app/Models/Country.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>Country</code>
+    </UndefinedDocblockClass>
+  </file>
+  <file src="app/Models/Follower.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>Follower</code>
+    </UndefinedDocblockClass>
+  </file>
+  <file src="app/Models/GroupChat.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>GroupChat</code>
+    </UndefinedDocblockClass>
+  </file>
+  <file src="app/Models/GroupChatAdmin.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>GroupChatAdmin</code>
+    </UndefinedDocblockClass>
+  </file>
+  <file src="app/Models/GroupChatUser.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>GroupChatUser</code>
+    </UndefinedDocblockClass>
+  </file>
+  <file src="app/Models/Like.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>Like</code>
+    </UndefinedDocblockClass>
+  </file>
+  <file src="app/Models/Post.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>Post</code>
+    </UndefinedDocblockClass>
+  </file>
+  <file src="app/Models/Reaction.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>Reaction</code>
+    </UndefinedDocblockClass>
+  </file>
+  <file src="app/Models/User.php">
+    <UndefinedDocblockClass occurrences="1">
+      <code>User</code>
+    </UndefinedDocblockClass>
+  </file>
+</files>

@@ -1,0 +1,113 @@
+stages:
+  - check-code
+  - build
+  - deploy
+  - deploy-prod
+
+php-check:
+  stage: check-code
+  image: php:7.4
+  before_script:
+    - apt-get update
+    - apt-get install zip unzip
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    - php composer-setup.php
+    - php -r "unlink('composer-setup.php');"
+    - php composer.phar install --no-suggest --prefer-dist --ignore-platform-reqs
+  script:
+    - ./vendor/bin/phpcs --standard=psr12 app -n tests -n
+    - ./vendor/bin/psalm --no-cache
+
+build:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker login -u "$CI_DEPENDENCY_PROXY_USER" -p "$CI_DEPENDENCY_PROXY_PASSWORD" "$CI_DEPENDENCY_PROXY_SERVER"
+    - docker pull ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/php:7.4-fpm-alpine
+    - docker pull ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/composer:latest
+  script:
+    - docker build --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --file Dockerfile_gitlab .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  only:
+    - master
+    - develop
+    - feature/ci_prod
+
+buildNginx:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker login -u "$CI_DEPENDENCY_PROXY_USER" -p "$CI_DEPENDENCY_PROXY_PASSWORD" "$CI_DEPENDENCY_PROXY_SERVER"
+    - docker pull ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/nginx:stable-alpine
+  script:
+    - docker build --tag $CI_REGISTRY_IMAGE:nginx-$CI_COMMIT_SHA --file Dockerfile.nginx_gitlab .
+    - docker push $CI_REGISTRY_IMAGE:nginx-$CI_COMMIT_SHA
+  only:
+    - master
+    - develop
+    - feature/ci_prod
+
+buildDocs:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker login -u "$CI_DEPENDENCY_PROXY_USER" -p "$CI_DEPENDENCY_PROXY_PASSWORD" "$CI_DEPENDENCY_PROXY_SERVER"
+    - docker pull ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/node:latest
+  script:
+    - docker build --tag $CI_REGISTRY_IMAGE:docs-$CI_COMMIT_SHA --file Dockerfile.docs_gitlab .
+    - docker push $CI_REGISTRY_IMAGE:docs-$CI_COMMIT_SHA
+  only:
+    - master
+    - develop
+    - feature/ci_prod
+
+deploy:
+  stage: deploy
+  image: registry.internal.digitex.fun/developers/devops/digitex-ci:master
+  variables:
+    AWS_ACCESS_KEY_ID: $EKS_DARKNET_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY: $EKS_DARKNET_SECRET_ACCESS_KEY
+  before_script:
+    - git clone https://${CICD_DEPLOY_USER}:${CICD_DEPLOY_PASS}@gitlab.internal.digitex.fun/developers/devops/cicd-deploy.git
+    - echo $GIT_CRYPT_SECRET|base64 -d > /tmp/GIT_CRYPT_SECRET
+    - cd cicd-deploy/deploy && git-crypt unlock /tmp/GIT_CRYPT_SECRET
+  script:
+    - git clone https://${CICD_DEPLOY_USER}:${CICD_DEPLOY_PASS}@gitlab.internal.digitex.fun/developers/devops/cicd-deploy.git
+    - aws eks --region ${AWS_DEFAULT_REGION} update-kubeconfig --name dgtx-darknet-blockster-eks --alias blockster_dev
+    - helmfile -e darknet-blockster -l namespace=dev,name=blockster-rest-api apply --skip-deps --set image.tag=$CI_COMMIT_SHA || helm rollback --namespace dev blockster-rest-api; helmfile -e darknet-blockster -l namespace=dev,name=blockster-rest-api apply --skip-deps --set image.tag=$CI_COMMIT_SHA
+  environment:
+    name: dev
+    url: https://api-dev.blockser.com/
+  only:
+    - develop
+
+
+deploy-prod:
+  stage: deploy-prod
+  image: registry.internal.digitex.fun/developers/devops/digitex-ci:master
+  variables:
+    AWS_ACCESS_KEY_ID: $EKS_MAINNET_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY: $EKS_MAINNET_SECRET_ACCESS_KEY
+  before_script:
+    - git clone https://${CICD_DEPLOY_USER}:${CICD_DEPLOY_PASS}@gitlab.internal.digitex.fun/developers/devops/cicd-deploy.git
+    - echo $GIT_CRYPT_SECRET|base64 -d > /tmp/GIT_CRYPT_SECRET
+    - cd cicd-deploy/deploy && git-crypt unlock /tmp/GIT_CRYPT_SECRET
+  script:
+    - git clone https://${CICD_DEPLOY_USER}:${CICD_DEPLOY_PASS}@gitlab.internal.digitex.fun/developers/devops/cicd-deploy.git
+    - aws eks --region ${AWS_DEFAULT_REGION} update-kubeconfig --name dgtx-mainnet-blockster-eks --alias mainnet-blockster 
+    - helmfile -e mainnet-blockster -l namespace=mainnet,name=blockster-rest-api apply --skip-deps --set image.tag=$CI_COMMIT_SHA || helm rollback --namespace mainnet blockster-rest-api; helmfile -e mainnet-blockster -l namespace=mainnet,name=blockster-rest-api apply --skip-deps --set image.tag=$CI_COMMIT_SHA
+  environment:
+    name: dev
+    url: https://api.blockser.com/
+  only:
+    - master
+    - feature/ci_prod
